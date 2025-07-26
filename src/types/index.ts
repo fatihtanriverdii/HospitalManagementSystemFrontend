@@ -25,7 +25,10 @@ export interface Appointment {
   patientId: number;
   doctorId: number;
   date: string;
-  startTime: string;
+  time: string;
+  doctorName?: string;
+  doctorSurname?: string;
+  departmentName?: string;
   patient?: Patient;
   doctor?: Doctor;
 }

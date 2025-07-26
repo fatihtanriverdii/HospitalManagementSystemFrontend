@@ -24,6 +24,7 @@ export default function PatientSearchPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(false);
   const [searched, setSearched] = useState(false);
 
   const form = useForm<SearchFormData>({
@@ -45,8 +46,9 @@ export default function PatientSearchPage() {
         setPatient(patientResponse.data.data);
         
         // Hasta randevularını getir
+        setIsLoadingAppointments(true);
         try {
-          const appointmentsResponse = await patientApi.getAppointments(data.tc);
+          const appointmentsResponse = await patientApi.getAppointments(patientResponse.data.data.id!);
           console.log('Appointments API Response:', appointmentsResponse); // Debug için
           
           if (appointmentsResponse.data.success && appointmentsResponse.data.data) {
@@ -57,6 +59,8 @@ export default function PatientSearchPage() {
         } catch (appointmentError) {
           console.error('Randevular yüklenirken hata:', appointmentError);
           setAppointments([]);
+        } finally {
+          setIsLoadingAppointments(false);
         }
       } else {
         setPatient(null);
@@ -76,6 +80,7 @@ export default function PatientSearchPage() {
   const clearSearch = () => {
     setPatient(null);
     setAppointments([]);
+    setIsLoadingAppointments(false);
     setSearched(false);
     form.reset();
   };
@@ -219,11 +224,21 @@ export default function PatientSearchPage() {
                   <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                     <Calendar className="h-6 w-6 text-purple-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Randevu Geçmişi
-                  </h2>
+                                  <h2 className="text-2xl font-bold text-gray-900">
+                  Randevu Geçmişi
+                </h2>
+              </div>
+              {isLoadingAppointments ? (
+                <div className="text-center py-12">
+                  <RefreshCw className="h-16 w-16 text-purple-400 mx-auto mb-4 animate-spin" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Randevular Yükleniyor...
+                  </h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    Hasta randevu geçmişi getiriliyor.
+                  </p>
                 </div>
-                {appointments.length > 0 ? (
+              ) : appointments.length > 0 ? (
                   <div className="space-y-4">
                     {appointments.map((appointment) => (
                       <div
@@ -233,10 +248,10 @@ export default function PatientSearchPage() {
                         <div className="flex justify-between items-start">
                           <div className="space-y-2">
                             <h3 className="text-lg font-bold text-gray-900">
-                              Dr. {appointment.doctor?.name} {appointment.doctor?.surname}
+                              Dr. {appointment.doctorName} {appointment.doctorSurname}
                             </h3>
                             <p className="text-purple-600 font-medium">
-                              {appointment.doctor?.department?.name}
+                              {appointment.departmentName}
                             </p>
                           </div>
                           <div className="text-right">
@@ -244,7 +259,7 @@ export default function PatientSearchPage() {
                               {format(new Date(appointment.date), 'dd MMMM yyyy', { locale: tr })}
                             </p>
                             <p className="text-purple-600 font-medium">
-                              {appointment.startTime}
+                              {appointment.time}
                             </p>
                           </div>
                         </div>

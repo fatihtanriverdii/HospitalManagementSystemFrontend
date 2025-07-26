@@ -14,7 +14,7 @@ const api = axios.create({
 export const patientApi = {
   create: (patient: Patient) => api.post<ApiResponse<Patient>>('/Patient', patient),
   getByTc: (tc: string) => api.get<ApiResponse<Patient>>(`/Patient/tc/${tc}`),
-  getAppointments: (tc: string) => api.get<ApiResponse<Appointment[]>>(`/Patient/${tc}/appointments`),
+  getAppointments: (patientId: number) => api.get<ApiResponse<Appointment[]>>(`/Appointment/patient/${patientId}`),
 };
 
 // Doctor API
@@ -22,6 +22,12 @@ export const doctorApi = {
   create: (doctor: Doctor) => api.post<ApiResponse<Doctor>>('/Doctor', doctor),
   getAll: () => api.get<ApiResponse<Doctor[]>>('/Doctor'),
   getByDepartment: (departmentId: number) => api.get<ApiResponse<Doctor[]>>(`/Doctor/department/${departmentId}`),
+  // Belirli bir tarihte doktorun uygun saatlerini getir
+  getAvailableSlots: (doctorId: number, date: string) =>
+    api.get<ApiResponse<{ id: number; time: string }[]>>(`/Doctor/${doctorId}/available-slots`, { params: { date } }),
+  // (Opsiyonel) Belirli bir tarih aralığı için uygun saatleri getir (ileride kullanılabilir)
+  getAvailableSlotsInRange: (doctorId: number, startDate: string, endDate: string) =>
+    api.get<ApiResponse<{ date: string; slots: { id: number; time: string }[] }[]>>(`/Doctor/${doctorId}/available-slots-range`, { params: { startDate, endDate } }),
 };
 
 // Department API

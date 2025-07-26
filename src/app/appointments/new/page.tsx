@@ -11,6 +11,7 @@ import Input from '@/components/ui/Input';
 import { patientApi, doctorApi, appointmentApi } from '@/services/api';
 import { Patient, Doctor, Appointment } from '@/types';
 import { Calendar, ArrowLeft, Search, User, Stethoscope, Clock, Save, RefreshCw } from 'lucide-react';
+import { Dialog } from '@headlessui/react';
 
 const appointmentSchema = z.object({
   patientTc: z.string().length(11, 'T.C. kimlik numarası 11 haneli olmalıdır'),
@@ -28,6 +29,10 @@ export default function NewAppointmentPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [showPatientSearch, setShowPatientSearch] = useState(true);
+  const [availableSlots, setAvailableSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [nearestSlots, setNearestSlots] = useState<any[]>([]);
+  const [showNearestModal, setShowNearestModal] = useState(false);
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -38,6 +43,9 @@ export default function NewAppointmentPage() {
       startTime: '',
     },
   });
+
+  const watchedDoctorId = form.watch('doctorId');
+  const watchedDate = form.watch('date');
 
   useEffect(() => {
     loadDoctors();
@@ -93,7 +101,7 @@ export default function NewAppointmentPage() {
         patientId: patient.id!,
         doctorId: data.doctorId,
         date: data.date,
-        startTime: data.startTime,
+        time: data.startTime,
       };
 
       const response = await appointmentApi.create(appointmentData);
@@ -115,6 +123,55 @@ export default function NewAppointmentPage() {
     setPatient(null);
     setShowPatientSearch(true);
     form.reset();
+  };
+
+  // Dinamik saatleri getir
+  useEffect(() => {
+    if (watchedDoctorId && watchedDate) {
+      setLoadingSlots(true);
+      doctorApi.getAvailableSlots(watchedDoctorId, watchedDate)
+        .then(res => {
+          setAvailableSlots(res.data.data || []);
+          // Eğer mevcut saat, yeni slotlar arasında yoksa sıfırla
+          if (!res.data.data?.some((slot: any) => slot.time === form.getValues('startTime'))) {
+            form.setValue('startTime', '');
+          }
+        })
+        .catch(() => {
+          setAvailableSlots([]);
+          form.setValue('startTime', '');
+        })
+        .finally(() => setLoadingSlots(false));
+    } else {
+      setAvailableSlots([]);
+      form.setValue('startTime', '');
+    }
+  }, [watchedDoctorId, watchedDate]);
+
+  // En yakın uygun randevuları getir
+  const handleFindNearest = async () => {
+    const doctorId = form.getValues('doctorId');
+    if (!doctorId) return;
+    setLoadingSlots(true);
+    const today = new Date();
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+    const allSlots: any[] = [];
+    for (const d of dates) {
+      try {
+        const res = await doctorApi.getAvailableSlots(doctorId, d);
+        const data = res.data;
+        if (data.data && data.data.length > 0) {
+          allSlots.push({ date: d, slots: data.data });
+        }
+      } catch {}
+    }
+    setNearestSlots(allSlots);
+    setShowNearestModal(true);
+    setLoadingSlots(false);
   };
 
   const timeSlots = [
@@ -228,7 +285,7 @@ export default function NewAppointmentPage() {
                   </label>
                   <select
                     {...form.register('doctorId', { valueAsNumber: true })}
-                    className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:border-green-500 transition-all duration-200"
+                    className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base text-gray-900 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:border-green-500 transition-all duration-200"
                   >
                     <option value="">Doktor seçin</option>
                     {doctors.map((doctor) => (
@@ -260,6 +317,8 @@ export default function NewAppointmentPage() {
                     label="Tarih"
                     type="date"
                     {...form.register('date')}
+                    value={watchedDate}
+                    onChange={(e) => form.setValue('date', e.target.value)}
                     error={form.formState.errors.date?.message}
                   />
                   <div className="space-y-2">
@@ -268,21 +327,33 @@ export default function NewAppointmentPage() {
                     </label>
                     <select
                       {...form.register('startTime')}
-                      className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:border-purple-500 transition-all duration-200"
+                      value={form.watch('startTime')}
+                      onChange={e => form.setValue('startTime', e.target.value)}
+                      className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base text-gray-900 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:border-purple-500 transition-all duration-200"
+                      disabled={loadingSlots || !watchedDoctorId || !watchedDate}
                     >
                       <option value="">Saat seçin</option>
-                      {timeSlots.map((time) => (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
+                      {availableSlots.map((slot: any) => (
+                        <option key={slot.id} value={slot.time}>{slot.time}</option>
                       ))}
                     </select>
+                    {loadingSlots && <div className="text-xs text-gray-500 mt-1">Saatler yükleniyor...</div>}
                     {form.formState.errors.startTime && (
                       <p className="text-sm text-red-600 font-medium">
                         {form.formState.errors.startTime.message}
                       </p>
                     )}
                   </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleFindNearest}
+                    disabled={!form.watch('doctorId') || loadingSlots}
+                  >
+                    En Yakın Uygun Randevuları Göster
+                  </Button>
                 </div>
               </div>
 
@@ -316,7 +387,56 @@ export default function NewAppointmentPage() {
               </div>
             </form>
           </Card>
-
+          {/* En Yakın Uygun Randevular Modalı */}
+          <Dialog open={showNearestModal} onClose={() => setShowNearestModal(false)} className="relative z-50">
+            <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+              <Dialog.Panel className="mx-auto max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                <Dialog.Title className="text-lg font-bold mb-4">En Yakın Uygun Randevular</Dialog.Title>
+                {nearestSlots.length === 0 ? (
+                  <div className="text-gray-500">Uygun randevu bulunamadı.</div>
+                ) : (
+                  <div className="space-y-4 max-h-80 overflow-y-auto">
+                    {nearestSlots.map((item: any) => (
+                      <div key={item.date} className="border-b pb-2">
+                        <div className="font-semibold text-indigo-700">{item.date}</div>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {item.slots.map((slot: any) => (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              className="px-2 py-1 bg-indigo-100 hover:bg-indigo-200 rounded text-indigo-800 text-sm transition"
+                              onClick={async () => {
+                                form.setValue('date', item.date);
+                                form.setValue('startTime', slot.time);
+                                setShowNearestModal(false);
+                                setLoadingSlots(true);
+                                try {
+                                  const res = await doctorApi.getAvailableSlots(form.getValues('doctorId'), item.date);
+                                  setAvailableSlots(res.data.data || []);
+                                } catch {
+                                  setAvailableSlots([]);
+                                } finally {
+                                  setLoadingSlots(false);
+                                }
+                              }}
+                            >
+                              {slot.time}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-6 flex justify-end">
+                  <Button type="button" variant="outline" onClick={() => setShowNearestModal(false)}>
+                    Kapat
+                  </Button>
+                </div>
+              </Dialog.Panel>
+            </div>
+          </Dialog>
           {/* Info Card */}
           <Card className="p-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">

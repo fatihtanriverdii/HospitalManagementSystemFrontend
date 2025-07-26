@@ -237,7 +237,7 @@ export default function DepartmentsPage() {
                     </label>
                     <select
                       {...doctorForm.register('departmentId', { valueAsNumber: true })}
-                      className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:border-green-500 transition-all duration-200"
+                      className="w-full h-12 rounded-xl border-2 border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 text-base text-gray-900 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:border-green-500 transition-all duration-200"
                     >
                       <option value="">Bölüm seçin</option>
                       {departments.map((dept) => (
