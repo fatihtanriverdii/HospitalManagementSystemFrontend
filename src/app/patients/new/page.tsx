@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { patientApi } from '@/services/api';
 import { Patient } from '@/types';
 import { UserPlus, ArrowLeft, Save, RefreshCw } from 'lucide-react';
@@ -25,6 +26,17 @@ type PatientFormData = z.infer<typeof patientSchema>;
 export default function NewPatientPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
 
   const form = useForm<PatientFormData>({
     resolver: zodResolver(patientSchema),
@@ -42,14 +54,72 @@ export default function NewPatientPage() {
     try {
       const response = await patientApi.create(data);
       if (response.data.success) {
-        alert('Hasta kaydı başarıyla oluşturuldu!');
-        router.push('/patients/search');
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Başarılı!',
+          message: 'Hasta kaydı başarıyla oluşturuldu!',
+        });
+        // Başarı mesajı 3 saniye sonra otomatik kapanır
+        setTimeout(() => {
+          setAlert({ ...alert, show: false });
+        }, 3000);
+        // 2 saniye sonra hasta arama sayfasına yönlendir
+        setTimeout(() => {
+          router.push('/patients/search');
+        }, 2000);
       } else {
-        alert('Hasta kaydı oluşturulurken bir hata oluştu.');
+        // API'den gelen hata mesajını kullan
+        const errorMessage = response.data.message || 'Hasta kaydı oluşturulurken bir hata oluştu.';
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Hata!',
+          message: errorMessage,
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Hasta kaydı oluşturulurken hata:', error);
-      alert('Hasta kaydı oluşturulurken bir hata oluştu.');
+      let errorMessage = 'Hasta kaydı oluşturulurken bir hata oluştu.';
+      
+      // API'den gelen hata mesajını kontrol et - farklı formatları dene
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.response?.data?.title) {
+        // Validation errors için
+        errorMessage = error.response.data.title;
+        
+        // Eğer detaylı hata mesajları varsa onları da ekle
+        if (error.response.data.errors) {
+          const errorDetails = Object.values(error.response.data.errors).flat();
+          if (errorDetails.length > 0) {
+            errorMessage += '\n\nDetaylar:\n' + errorDetails.join('\n');
+          }
+        }
+      } else if (error.response?.data) {
+        // Eğer data bir string ise direkt kullan
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      // TC kimlik numarası zaten mevcut hatası için özel mesaj
+      if (errorMessage.toLowerCase().includes('already exist') || 
+          errorMessage.toLowerCase().includes('mevcut') ||
+          errorMessage.toLowerCase().includes('zaten')) {
+        errorMessage = 'Bu T.C. kimlik numarasına sahip hasta zaten kayıtlı!';
+      }
+      
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: errorMessage,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -57,6 +127,13 @@ export default function NewPatientPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <Alert
+        show={alert.show}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert({ ...alert, show: false })}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="space-y-8">
           {/* Header */}
@@ -106,7 +183,7 @@ export default function NewPatientPage() {
                 />
                 <Input
                   label="Telefon"
-                  placeholder="0555 123 45 67"
+                  placeholder="555 123 45 67"
                   {...form.register('phone')}
                   error={form.formState.errors.phone?.message}
                 />

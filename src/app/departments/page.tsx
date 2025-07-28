@@ -7,6 +7,7 @@ import { z } from 'zod';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { departmentApi, doctorApi } from '@/services/api';
 import { Department, Doctor } from '@/types';
 import { Plus, Building2, User, ArrowLeft, CheckCircle } from 'lucide-react';
@@ -29,6 +30,17 @@ export default function DepartmentsPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [showDepartmentForm, setShowDepartmentForm] = useState(false);
   const [showDoctorForm, setShowDoctorForm] = useState(false);
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
 
   const departmentForm = useForm<DepartmentFormData>({
     resolver: zodResolver(departmentSchema),
@@ -78,12 +90,57 @@ export default function DepartmentsPage() {
         departmentForm.reset();
         setShowDepartmentForm(false);
         loadDepartments();
+        
+        // Başarı mesajı göster
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Başarılı!',
+          message: 'Bölüm başarıyla oluşturuldu!',
+        });
+        // 3 saniye sonra otomatik kapat
+        setTimeout(() => {
+          setAlert({ ...alert, show: false });
+        }, 3000);
       } else {
-        alert('Bölüm oluşturulurken bir hata oluştu.');
+        // API'den gelen hata mesajını kullan
+        const errorMessage = response.data.message || 'Bölüm oluşturulurken bir hata oluştu.';
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Hata!',
+          message: errorMessage,
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bölüm oluşturulurken hata:', error);
-      alert('Bölüm oluşturulurken bir hata oluştu.');
+      
+      let errorMessage = 'Bölüm oluşturulurken bir hata oluştu.';
+      
+      // API'den gelen hata mesajını kontrol et
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.response?.data?.title) {
+        // Validation errors için
+        errorMessage = error.response.data.title;
+        
+        // Eğer detaylı hata mesajları varsa onları da ekle
+        if (error.response.data.errors) {
+          const errorDetails = Object.values(error.response.data.errors).flat();
+          if (errorDetails.length > 0) {
+            errorMessage += '\n\nDetaylar:\n' + errorDetails.join('\n');
+          }
+        }
+      }
+      
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: errorMessage,
+      });
     }
   };
 
@@ -94,17 +151,69 @@ export default function DepartmentsPage() {
         doctorForm.reset();
         setShowDoctorForm(false);
         loadDoctors();
+        
+        // Başarı mesajı göster
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Başarılı!',
+          message: 'Doktor başarıyla oluşturuldu!',
+        });
+        // 3 saniye sonra otomatik kapat
+        setTimeout(() => {
+          setAlert({ ...alert, show: false });
+        }, 3000);
       } else {
-        alert('Doktor oluşturulurken bir hata oluştu.');
+        // API'den gelen hata mesajını kullan
+        const errorMessage = response.data.message || 'Doktor oluşturulurken bir hata oluştu.';
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Hata!',
+          message: errorMessage,
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Doktor oluşturulurken hata:', error);
-      alert('Doktor oluşturulurken bir hata oluştu.');
+      
+      let errorMessage = 'Doktor oluşturulurken bir hata oluştu.';
+      
+      // API'den gelen hata mesajını kontrol et
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.response?.data?.title) {
+        // Validation errors için
+        errorMessage = error.response.data.title;
+        
+        // Eğer detaylı hata mesajları varsa onları da ekle
+        if (error.response.data.errors) {
+          const errorDetails = Object.values(error.response.data.errors).flat();
+          if (errorDetails.length > 0) {
+            errorMessage += '\n\nDetaylar:\n' + errorDetails.join('\n');
+          }
+        }
+      }
+      
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: errorMessage,
+      });
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <Alert
+        show={alert.show}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert({ ...alert, show: false })}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="space-y-8">
           {/* Header */}

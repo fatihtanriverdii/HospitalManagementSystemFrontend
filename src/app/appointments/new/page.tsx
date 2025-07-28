@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Alert from '@/components/ui/Alert';
 import { patientApi, doctorApi, appointmentApi } from '@/services/api';
 import { Patient, Doctor, Appointment } from '@/types';
 import { Calendar, ArrowLeft, Search, User, Stethoscope, Clock, Save, RefreshCw } from 'lucide-react';
@@ -33,6 +34,17 @@ export default function NewAppointmentPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [nearestSlots, setNearestSlots] = useState<any[]>([]);
   const [showNearestModal, setShowNearestModal] = useState(false);
+  const [alert, setAlert] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(appointmentSchema),
@@ -68,7 +80,12 @@ export default function NewAppointmentPage() {
   const searchPatient = async () => {
     const tc = form.getValues('patientTc');
     if (tc.length !== 11) {
-      alert('Lütfen geçerli bir T.C. kimlik numarası girin.');
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: 'Lütfen geçerli bir T.C. kimlik numarası girin.',
+      });
       return;
     }
 
@@ -78,12 +95,57 @@ export default function NewAppointmentPage() {
       if (response.data.success && response.data.data) {
         setPatient(response.data.data);
         setShowPatientSearch(false);
+        
+        // Başarı mesajı göster
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Başarılı!',
+          message: 'Hasta bilgileri başarıyla getirildi.',
+        });
+        // 3 saniye sonra otomatik kapat
+        setTimeout(() => {
+          setAlert({ ...alert, show: false });
+        }, 3000);
       } else {
-        alert('Hasta bulunamadı. Lütfen T.C. kimlik numarasını kontrol edin.');
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Hata!',
+          message: 'Hasta bulunamadı. Lütfen T.C. kimlik numarasını kontrol edin.',
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Hasta aranırken hata:', error);
-      alert('Hasta bulunamadı. Lütfen T.C. kimlik numarasını kontrol edin.');
+      
+      let errorMessage = 'Hasta bulunamadı. Lütfen T.C. kimlik numarasını kontrol edin.';
+      
+      // API'den gelen hata mesajını kontrol et
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.response?.data?.title) {
+        // Validation errors için
+        errorMessage = error.response.data.title;
+        
+        // Eğer detaylı hata mesajları varsa onları da ekle
+        if (error.response.data.errors) {
+          const errorDetails = Object.values(error.response.data.errors).flat();
+          if (errorDetails.length > 0) {
+            errorMessage += '\n\nDetaylar:\n' + errorDetails.join('\n');
+          }
+        }
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Bu T.C. kimlik numarasına sahip hasta bulunamadı.';
+      }
+      
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: errorMessage,
+      });
     } finally {
       setIsSearching(false);
     }
@@ -91,7 +153,12 @@ export default function NewAppointmentPage() {
 
   const onSubmit = async (data: AppointmentFormData) => {
     if (!patient) {
-      alert('Lütfen önce hasta bilgilerini arayın.');
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: 'Lütfen önce hasta bilgilerini arayın.',
+      });
       return;
     }
 
@@ -106,14 +173,55 @@ export default function NewAppointmentPage() {
 
       const response = await appointmentApi.create(appointmentData);
       if (response.data.success) {
-        alert('Randevu başarıyla oluşturuldu!');
-        router.push('/patients/search');
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Başarılı!',
+          message: 'Randevu başarıyla oluşturuldu!',
+        });
+        // 2 saniye sonra hasta arama sayfasına yönlendir
+        setTimeout(() => {
+          router.push('/patients/search');
+        }, 2000);
       } else {
-        alert('Randevu oluşturulurken bir hata oluştu.');
+        // API'den gelen hata mesajını kullan
+        const errorMessage = response.data.message || 'Randevu oluşturulurken bir hata oluştu.';
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Hata!',
+          message: errorMessage,
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Randevu oluşturulurken hata:', error);
-      alert('Randevu oluşturulurken bir hata oluştu.');
+      
+      let errorMessage = 'Randevu oluşturulurken bir hata oluştu.';
+      
+      // API'den gelen hata mesajını kontrol et
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error.response?.data?.title) {
+        // Validation errors için
+        errorMessage = error.response.data.title;
+        
+        // Eğer detaylı hata mesajları varsa onları da ekle
+        if (error.response.data.errors) {
+          const errorDetails = Object.values(error.response.data.errors).flat();
+          if (errorDetails.length > 0) {
+            errorMessage += '\n\nDetaylar:\n' + errorDetails.join('\n');
+          }
+        }
+      }
+      
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Hata!',
+        message: errorMessage,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +289,13 @@ export default function NewAppointmentPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <Alert
+        show={alert.show}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert({ ...alert, show: false })}
+      />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="space-y-8">
           {/* Header */}

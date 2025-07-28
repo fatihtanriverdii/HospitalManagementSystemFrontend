@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Patient, Doctor, Department, Appointment, ApiResponse } from '@/types';
+import { Patient, Doctor, Department, Appointment, ApiResponse, PaginatedResponse } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7131/api';
 
@@ -12,9 +12,26 @@ const api = axios.create({
 
 // Patient API
 export const patientApi = {
-  create: (patient: Patient) => api.post<ApiResponse<Patient>>('/Patient', patient),
+  create: async (patient: Patient) => {
+    try {
+      const response = await api.post<ApiResponse<Patient>>('/Patient', patient);
+      return response;
+    } catch (error: any) {
+      // Hata detaylarını console'a yazdır
+      console.log('API Error Details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.response?.data?.message || error.response?.data?.Message,
+        fullError: error
+      });
+      throw error;
+    }
+  },
   getByTc: (tc: string) => api.get<ApiResponse<Patient>>(`/Patient/tc/${tc}`),
-  getAppointments: (patientId: number) => api.get<ApiResponse<Appointment[]>>(`/Appointment/patient/${patientId}`),
+  getAppointments: (patientId: number, pageNumber: number = 1, pageSize: number = 10) => 
+    api.get<ApiResponse<PaginatedResponse<Appointment>>>(`/Appointment/patient/${patientId}`, {
+      params: { PageNumber: pageNumber, PageSize: pageSize }
+    }),
 };
 
 // Doctor API
