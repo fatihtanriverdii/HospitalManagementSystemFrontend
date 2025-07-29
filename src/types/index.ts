@@ -16,8 +16,7 @@ export interface Doctor {
   id?: number;
   name: string;
   surname: string;
-  departmentId: number;
-  department?: Department;
+  departmentName: string;
 }
 
 export interface Appointment {

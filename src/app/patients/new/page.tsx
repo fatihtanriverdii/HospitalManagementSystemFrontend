@@ -26,6 +26,7 @@ type PatientFormData = z.infer<typeof patientSchema>;
 export default function NewPatientPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [alert, setAlert] = useState<{
     show: boolean;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -60,14 +61,12 @@ export default function NewPatientPage() {
           title: 'Başarılı!',
           message: 'Hasta kaydı başarıyla oluşturuldu!',
         });
-        // Başarı mesajı 3 saniye sonra otomatik kapanır
-        setTimeout(() => {
-          setAlert({ ...alert, show: false });
-        }, 3000);
-        // 2 saniye sonra hasta arama sayfasına yönlendir
+        // Hemen loading'i başlat ve yönlendir
+        setIsRedirecting(true);
+        // 1 saniye sonra yönlendir (kullanıcı başarı mesajını görebilsin)
         setTimeout(() => {
           router.push('/patients/search');
-        }, 2000);
+        }, 1000);
       } else {
         // API'den gelen hata mesajını kullan
         const errorMessage = response.data.message || 'Hasta kaydı oluşturulurken bir hata oluştu.';
@@ -134,6 +133,22 @@ export default function NewPatientPage() {
         message={alert.message}
         onClose={() => setAlert({ ...alert, show: false })}
       />
+      
+      {/* Yönlendirme Loading Ekranı */}
+      {isRedirecting && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md mx-4 text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Yönlendiriliyor...
+            </h3>
+            <p className="text-gray-600">
+              Hasta sorgulama sayfasına yönlendiriliyorsunuz.
+            </p>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="space-y-8">
           {/* Header */}

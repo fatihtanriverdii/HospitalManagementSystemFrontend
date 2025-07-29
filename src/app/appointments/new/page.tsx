@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -58,9 +58,13 @@ export default function NewAppointmentPage() {
 
   const watchedDoctorId = form.watch('doctorId');
   const watchedDate = form.watch('date');
+  const doctorsLoadedRef = useRef(false);
 
   useEffect(() => {
-    loadDoctors();
+    if (!doctorsLoadedRef.current) {
+      loadDoctors();
+      doctorsLoadedRef.current = true;
+    }
   }, []);
 
   const loadDoctors = async () => {
@@ -261,22 +265,33 @@ export default function NewAppointmentPage() {
     const doctorId = form.getValues('doctorId');
     if (!doctorId) return;
     setLoadingSlots(true);
-    const today = new Date();
-    const dates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
+    
     const allSlots: any[] = [];
-    for (const d of dates) {
+    let currentDate = new Date();
+    let daysChecked = 0;
+    const maxDaysToCheck = 30; // Maksimum 30 gün kontrol et (güvenlik için)
+    
+    // 7 gün dolu randevu bulana kadar veya maksimum gün sayısına ulaşana kadar devam et
+    while (allSlots.length < 7 && daysChecked < maxDaysToCheck) {
+      const dateString = currentDate.toISOString().slice(0, 10);
+      
       try {
-        const res = await doctorApi.getAvailableSlots(doctorId, d);
+        const res = await doctorApi.getAvailableSlots(doctorId, dateString);
         const data = res.data;
+        
+        // Eğer bu günde randevu varsa listeye ekle
         if (data.data && data.data.length > 0) {
-          allSlots.push({ date: d, slots: data.data });
+          allSlots.push({ date: dateString, slots: data.data });
         }
-      } catch {}
+      } catch (error) {
+        console.error(`Tarih ${dateString} için randevu kontrolü sırasında hata:`, error);
+      }
+      
+      // Bir sonraki güne geç
+      currentDate.setDate(currentDate.getDate() + 1);
+      daysChecked++;
     }
+    
     setNearestSlots(allSlots);
     setShowNearestModal(true);
     setLoadingSlots(false);

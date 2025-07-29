@@ -345,9 +345,9 @@ export default function PatientSearchPage() {
                         onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                         className="px-3 py-2 border-2 border-purple-200 rounded-lg text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
                       >
-                        <option value={5}>5</option>
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
+                        <option key="5" value={5}>5</option>
+                        <option key="10" value={10}>10</option>
+                        <option key="20" value={20}>20</option>
                       </select>
                     </div>
                   )}
@@ -426,7 +426,7 @@ export default function PatientSearchPage() {
                               
                               return (
                                 <Button
-                                  key={pageNum}
+                                  key={`page-${pageNum}-${i}`}
                                   variant={currentPage === pageNum ? "primary" : "outline"}
                                   size="sm"
                                   onClick={() => handlePageChange(pageNum)}

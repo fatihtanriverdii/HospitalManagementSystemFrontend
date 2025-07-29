@@ -36,8 +36,13 @@ export const patientApi = {
 
 // Doctor API
 export const doctorApi = {
-  create: (doctor: Doctor) => api.post<ApiResponse<Doctor>>('/Doctor', doctor),
+  create: (doctor: { name: string; surname: string; departmentId: number }) => api.post<ApiResponse<Doctor>>('/Doctor', doctor),
   getAll: () => api.get<ApiResponse<Doctor[]>>('/Doctor'),
+  // Pagination için yeni endpoint - sadece doktor tanımlamaları sayfasında kullanılacak
+  getPaginated: (pageNumber: number = 1, pageSize: number = 10) => 
+    api.get<ApiResponse<PaginatedResponse<Doctor>>>('/Doctor/pagination', {
+      params: { PageNumber: pageNumber, PageSize: pageSize }
+    }),
   getByDepartment: (departmentId: number) => api.get<ApiResponse<Doctor[]>>(`/Doctor/department/${departmentId}`),
   // Belirli bir tarihte doktorun uygun saatlerini getir
   getAvailableSlots: (doctorId: number, date: string) =>
@@ -51,6 +56,11 @@ export const doctorApi = {
 export const departmentApi = {
   create: (department: Department) => api.post<ApiResponse<Department>>('/Department', department),
   getAll: () => api.get<ApiResponse<Department[]>>('/Department'),
+  // Pagination için yeni endpoint - sadece bölüm tanımlamaları sayfasında kullanılacak
+  getPaginated: (pageNumber: number = 1, pageSize: number = 10) => 
+    api.get<ApiResponse<PaginatedResponse<Department>>>('/Department/pagination', {
+      params: { PageNumber: pageNumber, PageSize: pageSize }
+    }),
 };
 
 // Appointment API
